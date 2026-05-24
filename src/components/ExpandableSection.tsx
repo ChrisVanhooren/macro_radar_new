@@ -1,0 +1,137 @@
+'use client'
+
+import { useState } from 'react'
+import DrillDown from './DrillDown'
+
+interface ExpandableSectionProps {
+  title: string
+  label?: string
+  children: React.ReactNode
+  sectionKey: string
+  sectionContent: unknown
+  briefDate: string
+}
+
+export default function ExpandableSection({
+  title,
+  label,
+  children,
+  sectionKey,
+  sectionContent,
+  briefDate,
+}: ExpandableSectionProps) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [drillDownText, setDrillDownText] = useState('')
+  const [isStreaming, setIsStreaming] = useState(false)
+
+  async function handleDrillDown() {
+    if (isStreaming) return
+    setDrillDownText('')
+    setIsStreaming(true)
+
+    try {
+      const response = await fetch('/api/drilldown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sectionKey, sectionContent, briefDate }),
+      })
+
+      if (!response.ok || !response.body) {
+        setDrillDownText('Analysis unavailable. Please try again.')
+        setIsStreaming(false)
+        return
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const data = line.slice(6).trim()
+          if (data === '[DONE]') continue
+          try {
+            const { text } = JSON.parse(data) as { text: string }
+            setDrillDownText((prev) => prev + text)
+          } catch {
+            // skip malformed lines
+          }
+        }
+      }
+    } catch {
+      setDrillDownText('Analysis unavailable. Please try again.')
+    } finally {
+      setIsStreaming(false)
+    }
+  }
+
+  return (
+    <div
+      className="mb-6"
+      style={{ borderBottom: '1px solid var(--border)', paddingBottom: '1.5rem' }}
+    >
+      <button
+        onClick={() => setIsExpanded((v) => !v)}
+        className="w-full text-left group flex items-start justify-between gap-4 py-1"
+      >
+        <div className="flex items-start gap-3 flex-1">
+          {label && (
+            <span
+              className="text-xs tracking-widest uppercase px-2 py-0.5 mt-0.5 shrink-0"
+              style={{
+                border: '1px solid var(--border)',
+                color: 'var(--text-muted)',
+                fontFamily: 'var(--font-inter)',
+              }}
+            >
+              {label}
+            </span>
+          )}
+          <h2
+            className="text-base md:text-lg font-semibold leading-snug transition-colors group-hover:opacity-80"
+            style={{ fontFamily: 'var(--font-playfair)', color: 'var(--text)' }}
+          >
+            {title}
+          </h2>
+        </div>
+        <span
+          className="text-lg mt-0.5 shrink-0 transition-transform duration-200"
+          style={{
+            color: 'var(--text-muted)',
+            transform: isExpanded ? 'rotate(45deg)' : 'rotate(0deg)',
+          }}
+        >
+          +
+        </span>
+      </button>
+
+      {isExpanded && (
+        <div className="mt-4">
+          {children}
+
+          <div className="mt-4">
+            {!drillDownText && !isStreaming ? (
+              <button
+                onClick={handleDrillDown}
+                className="text-xs tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
+                style={{ color: 'var(--accent)' }}
+              >
+                Go Deeper →
+              </button>
+            ) : (
+              <DrillDown text={drillDownText} isStreaming={isStreaming} />
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
