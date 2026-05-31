@@ -111,10 +111,16 @@ Requirements:
   }
 
   let jsonText = textBlock.text.trim()
-  // Strip markdown fences if model wraps the response anyway
+  // Strip markdown fences
   if (jsonText.startsWith('```')) {
     jsonText = jsonText.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '')
   }
+  // If model added preamble text, find the first { and slice from there
+  const firstBrace = jsonText.indexOf('{')
+  if (firstBrace > 0) jsonText = jsonText.slice(firstBrace)
+  // Trim any trailing text after the final }
+  const lastBrace = jsonText.lastIndexOf('}')
+  if (lastBrace !== -1 && lastBrace < jsonText.length - 1) jsonText = jsonText.slice(0, lastBrace + 1)
 
   const brief = JSON.parse(jsonText) as Brief
   return brief
