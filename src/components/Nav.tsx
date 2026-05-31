@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import GenerateButton from './GenerateButton'
 
 export default function Nav() {
   return (
@@ -18,6 +19,8 @@ export default function Nav() {
       </Link>
 
       <div className="flex items-center gap-6">
+        <GenerateButton />
+
         <Link
           href="/archive"
           className="text-xs tracking-widest uppercase transition-opacity hover:opacity-70"
