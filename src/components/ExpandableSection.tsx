@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import DrillDown from './DrillDown'
 
 interface ExpandableSectionProps {
@@ -23,8 +23,10 @@ export default function ExpandableSection({
   const [isExpanded, setIsExpanded] = useState(false)
   const [drillDownText, setDrillDownText] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
+  const [question, setQuestion] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  async function handleDrillDown() {
+  async function stream(question?: string) {
     if (isStreaming) return
     setDrillDownText('')
     setIsStreaming(true)
@@ -33,7 +35,7 @@ export default function ExpandableSection({
       const response = await fetch('/api/drilldown', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sectionKey, sectionContent, briefDate }),
+        body: JSON.stringify({ sectionKey, sectionContent, briefDate, question }),
       })
 
       if (!response.ok || !response.body) {
@@ -71,6 +73,13 @@ export default function ExpandableSection({
     } finally {
       setIsStreaming(false)
     }
+  }
+
+  function handleFollowUp() {
+    const q = question.trim()
+    if (!q) return
+    setQuestion('')
+    stream(q)
   }
 
   return (
@@ -120,14 +129,47 @@ export default function ExpandableSection({
           <div className="mt-4">
             {!drillDownText && !isStreaming ? (
               <button
-                onClick={handleDrillDown}
+                onClick={() => stream()}
                 className="text-xs tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
                 style={{ color: 'var(--accent)' }}
               >
                 Go Deeper →
               </button>
             ) : (
-              <DrillDown text={drillDownText} isStreaming={isStreaming} />
+              <>
+                <DrillDown text={drillDownText} isStreaming={isStreaming} />
+
+                {!isStreaming && (
+                  <div
+                    className="mt-5 flex gap-2 items-center"
+                    style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem' }}
+                  >
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={question}
+                      onChange={(e) => setQuestion(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleFollowUp()}
+                      placeholder="Ask a follow-up about this…"
+                      className="flex-1 bg-transparent text-sm outline-none placeholder:opacity-40"
+                      style={{
+                        color: 'var(--text)',
+                        fontFamily: 'var(--font-inter)',
+                        caretColor: 'var(--accent)',
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleFollowUp}
+                      disabled={!question.trim()}
+                      className="text-xs tracking-[0.2em] uppercase transition-opacity hover:opacity-70 disabled:opacity-20 shrink-0"
+                      style={{ color: 'var(--accent)' }}
+                    >
+                      Ask →
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

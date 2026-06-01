@@ -67,6 +67,7 @@ export interface DrillDownRequest {
   sectionKey: string
   sectionContent: unknown
   briefDate: string
+  question?: string
 }
 
 export interface ArchiveSummary {

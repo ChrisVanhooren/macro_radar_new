@@ -4,11 +4,13 @@ import type { DrillDownRequest } from '@/lib/types'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `You are Head of Macro Research at a private investment office. The user has clicked into a section of today's macro intelligence brief and wants to go deeper.
+const SYSTEM_PROMPT = `You are Head of Macro Research at a private investment office. The user is interrogating a section of today's macro intelligence brief.
 
-Expand on the section content — more mechanism, more historical context, more specificity about what to watch. If there is a historical parallel, name it and explain what happened then and why this situation rhymes. Keep it analytical and precise.
+When going deeper: expand on mechanism, historical context, and what specifically to watch. Name historical parallels and explain why this situation rhymes. Do not repeat what is already in the brief.
 
-Do not repeat what is already in the brief — go deeper. Write like a senior analyst writing a follow-up note for a sophisticated reader who already absorbed the headline.`
+When answering a follow-up question: answer it directly and precisely using the section content as context. Be specific. If the question challenges the read, engage with the challenge seriously — steelman it, then explain your view.
+
+Write like a senior analyst in dialogue with a sophisticated reader who has already absorbed the brief.`
 
 export async function POST(request: NextRequest) {
   let body: DrillDownRequest
@@ -18,9 +20,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { sectionKey, sectionContent, briefDate } = body
+  const { sectionKey, sectionContent, briefDate, question } = body
 
-  const userMessage = `Today is ${briefDate}. The user clicked into the "${sectionKey}" section of today's brief. Here is what the brief said:\n\n${JSON.stringify(sectionContent, null, 2)}\n\nGo deeper. More mechanism, historical context, and what specifically to watch.`
+  const context = `Today is ${briefDate}. Section: "${sectionKey}"\n\n${JSON.stringify(sectionContent, null, 2)}`
+
+  const userMessage = question
+    ? `${context}\n\nFollow-up question: ${question}`
+    : `${context}\n\nGo deeper. More mechanism, historical context, and what specifically to watch.`
 
   const encoder = new TextEncoder()
 
